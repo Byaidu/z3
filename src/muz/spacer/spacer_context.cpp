@@ -3651,22 +3651,40 @@ lbool context::expand_pob(pob& n, pob_ref_buffer &out)
         // Try to create child with model
         // create_children() might return false if solver is incomplete (e.g.,
         // due to weak_abs)
-        if (create_children(n, *r, *model, reach_pred_used, out)) {
-          out.push_back(&n);
-          IF_VERBOSE(1, verbose_stream()
-                            << " U " << std::fixed << std::setprecision(2)
+        if (n.weakness() < 10) {
+            if (create_children(n, *r, *model, reach_pred_used, out)) {
+                out.push_back(&n);
+                IF_VERBOSE(1, verbose_stream()
+                                    << " U " << std::fixed << std::setprecision(2)
+                                    << watch.get_seconds() << "\n";);
+                return l_undef;
+            } else {
+                // Cannot create child. Increase weakness and try again.
+                SASSERT(out.empty());
+                n.bump_weakness();
+                IF_VERBOSE(1, verbose_stream()
+                                    << " UNDEF " << std::fixed << std::setprecision(2)
+                                    << watch.get_seconds() << "\n";);
+                // Recursion bounded by weakness (atmost 10 right now)
+                return expand_pob(n, out);
+            }
+        } else {
+            // HACK
+            expr_ref res = expr_ref(m.mk_true(), m);
+            expr_ref_vector args(m);
+            args.push_back(res);
+            pob_ref nref(&n);
+            lemma_ref lemma_pob;
+            lemma_pob = alloc(class lemma, nref, args, n.level());
+            n.pt().add_lemma(lemma_pob.get());
+            n.inc_level();
+            out.push_back(&n);
+            IF_VERBOSE(1, verbose_stream()
+                            << " H " << std::fixed << std::setprecision(2)
                             << watch.get_seconds() << "\n";);
-          return l_undef;
-        } else if (n.weakness() < 10) {
-          // Cannot create child. Increase weakness and try again.
-          SASSERT(out.empty());
-          n.bump_weakness();
-          IF_VERBOSE(1, verbose_stream()
-                            << " UNDEF " << std::fixed << std::setprecision(2)
-                            << watch.get_seconds() << "\n";);
-          // Recursion bounded by weakness (atmost 10 right now)
-          return expand_pob(n, out);
+            return l_false;
         }
+        UNREACHABLE();
         TRACE("spacer", tout << "unknown state: " << mk_and(cube) << "\n";);
         throw unknown_exception();
     }
