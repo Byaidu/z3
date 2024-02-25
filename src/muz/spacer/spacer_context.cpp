@@ -55,7 +55,8 @@ Notes:
 #include "muz/spacer/spacer_concretize.h"
 #include "muz/spacer/spacer_global_generalizer.h"
 
-#define WEAKNESS_MAX 65535
+#define WEAKNESS_MAX 10
+#define BINDINGS_MAX 128
 
 namespace spacer {
 
@@ -3651,7 +3652,7 @@ lbool context::expand_pob(pob& n, pob_ref_buffer &out)
         // Try to create child with model
         // create_children() might return false if solver is incomplete (e.g.,
         // due to weak_abs)
-        if (n.weakness() < 10) {
+        if (n.weakness() < WEAKNESS_MAX) {
             if (create_children(n, *r, *model, reach_pred_used, out)) {
                 out.push_back(&n);
                 IF_VERBOSE(1, verbose_stream()
@@ -3755,6 +3756,24 @@ lbool context::expand_pob(pob& n, pob_ref_buffer &out)
             m_stats.m_num_lemmas++;
         }
 
+        int tot_bind=0, tot_lemma=0;
+        for (auto &l : n.lemmas()){
+            tot_lemma += 1;
+            tot_bind += l->get_bindings().size();
+        }
+        IF_VERBOSE(1, verbose_stream() << " B " << tot_lemma << " " << tot_bind;);
+        if (tot_bind >= BINDINGS_MAX) {
+            // HACK
+            expr_ref res = expr_ref(m.mk_true(), m);
+            expr_ref_vector args(m);
+            args.push_back(res);
+            pob_ref nref(&n);
+            lemma_ref lemma_pob;
+            lemma_pob = alloc(class lemma, nref, args, n.level());
+            n.pt().add_lemma(lemma_pob.get());
+            IF_VERBOSE(1, verbose_stream() << " H ";);
+        }
+
         // Optionally update the node to be the negation of the lemma
         if (is_new && m_use_lemma_as_pob) {
             expr_ref c(m);
@@ -3815,7 +3834,7 @@ lbool context::expand_pob(pob& n, pob_ref_buffer &out)
           // do not create children, but bump weakness
           // bail out if this does not help
           // AG: do not know why this is a good strategy
-          if (n.weakness() < 10) {
+          if (n.weakness() < WEAKNESS_MAX) {
               SASSERT(out.empty());
               n.bump_weakness();
               return expand_pob(n, out);
@@ -3828,7 +3847,7 @@ lbool context::expand_pob(pob& n, pob_ref_buffer &out)
             return l_undef;
         }
 
-        if (n.weakness() < 10 /* MAX_WEAKENSS */) {
+        if (n.weakness() < WEAKNESS_MAX /* MAX_WEAKENSS */) {
             bool has_new_child = false;
             SASSERT(m_weak_abs);
             m_stats.m_expand_pob_undef++;
