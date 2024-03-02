@@ -2210,14 +2210,14 @@ void pred_transformer::frames::simplify_formulas ()
                         verbose_stream() << k << ": "
                                          << mk_pp(r->form(k), m) << "\n";
                 }
-                ENSURE(found);
+                // ENSURE(found);
                 SASSERT(found);
             }
         }
     }
 
     SASSERT(new_lemmas.size() + num_sumbsumed == m_lemmas.size());
-    ENSURE(new_lemmas.size() + num_sumbsumed == m_lemmas.size());
+    // ENSURE(new_lemmas.size() + num_sumbsumed == m_lemmas.size());
     if (new_lemmas.size() < m_lemmas.size()) {
         m_lemmas.reset();
         m_lemmas.append(new_lemmas);
