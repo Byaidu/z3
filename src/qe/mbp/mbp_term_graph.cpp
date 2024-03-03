@@ -38,6 +38,8 @@ Notes:
 #include "util/uint_set.h"
 #include "util/util.h"
 
+#define LOOP_MAX 65536
+
 namespace mbp {
 
 static expr_ref mk_neq(ast_manager &m, expr *e1, expr *e2) {
@@ -931,7 +933,11 @@ bool term_graph::makes_cycle(term *t) {
     for (auto *it : term::children(t))
         todo.push_back(it->get_repr()); 
     term *it;
+    unsigned loop_cnt=0;
     while (!todo.empty()) {
+        loop_cnt++;
+        if (loop_cnt > LOOP_MAX)
+            return false;
         it = todo.back();
         todo.pop_back();
         if (it->get_root().get_id() == r.get_id())
